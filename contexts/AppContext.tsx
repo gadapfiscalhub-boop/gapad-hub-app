@@ -8,9 +8,13 @@ import { supabase } from '@/lib/supabase';
 interface AppContextType {
   user: User | null;
   token: string | null;
+  activeProject: Project | null;
+  activeProjectId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   signIn: (token: string, user: any) => void;
+  signOut: () => void;
+  selectProject: (projectOrId: Project | string) => void;
   loginWithCredentials: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -20,12 +24,16 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
 
   useEffect(() => {
     const savedToken = localStorage.getItem('gadap_token');
     const savedUser = localStorage.getItem('gadap_user');
+    const savedProjectId = localStorage.getItem('gadap_active_project_id');
+    const savedProjectData = localStorage.getItem('gadap_active_project_data');
 
     if (savedToken && savedUser) {
       try {
@@ -36,6 +44,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('gadap_user');
       }
     }
+
+    if (savedProjectId) {
+      setActiveProjectId(savedProjectId);
+    }
+    if (savedProjectData) {
+      try {
+        setActiveProject(JSON.parse(savedProjectData));
+      } catch (e) {}
+    }
+
     setIsLoading(false);
   }, []);
 
@@ -54,8 +72,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(formattedUser);
 
-    // Redirecionamento obrigatório para seleção de obra
+    // Redirecionamento imediato para selecionar obra
     router.push('/selecionar-obra');
+  };
+
+  const selectProject = (projectOrId: Project | string) => {
+    let projectId: string;
+    let projectData: Project;
+
+    if (typeof projectOrId === 'string') {
+      projectId = projectOrId;
+      projectData = {
+        id: projectId,
+        name: `Obra ${projectId}`,
+        address: 'Canteiro Operacional',
+        status: 'active',
+      };
+    } else {
+      projectId = projectOrId.id;
+      projectData = projectOrId;
+    }
+
+    setActiveProject(projectData);
+    setActiveProjectId(projectId);
+    localStorage.setItem('gadap_active_project_id', projectId);
+    localStorage.setItem('gadap_active_project_data', JSON.stringify(projectData));
+
+    // Navegar para o painel principal após seleção
+    router.push('/orcamentos/novo');
+  };
+
+  const signOut = () => {
+    localStorage.removeItem('gadap_token');
+    localStorage.removeItem('gadap_user');
+    localStorage.removeItem('gadap_active_project_id');
+    localStorage.removeItem('gadap_active_project_data');
+    setToken(null);
+    setUser(null);
+    setActiveProject(null);
+    setActiveProjectId(null);
+    supabase.auth.signOut().catch(() => {});
+    router.push('/login');
   };
 
   const loginWithCredentials = async (email: string, password: string) => {
@@ -90,27 +147,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('gadap_token');
-    localStorage.removeItem('gadap_user');
-    localStorage.removeItem('gadap_active_project_id');
-    localStorage.removeItem('gadap_active_project_data');
-    setToken(null);
-    setUser(null);
-    supabase.auth.signOut().catch(() => {});
-    router.push('/login');
-  };
-
   return (
     <AppContext.Provider
       value={{
         user,
         token,
+        activeProject,
+        activeProjectId,
         isAuthenticated: !!token,
         isLoading,
         signIn,
+        signOut,
+        selectProject,
         loginWithCredentials,
-        logout,
+        logout: signOut,
       }}
     >
       {children}
@@ -126,7 +176,5 @@ export function useApp() {
   return context;
 }
 
-// Aliases para retrocompatibilidade
 export const AuthProvider = AppProvider;
 export const useAuth = useApp;
-
