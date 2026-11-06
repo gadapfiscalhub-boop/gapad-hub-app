@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProjectProvider } from "@/context/ProjectContext";
 import { PWARegister } from "@/components/PWARegister";
+import { BottomNav } from "@/components/BottomNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,11 +49,12 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 pb-20">
         <AuthProvider>
           <ProjectProvider>
             <PWARegister />
-            {children}
+            <main className="flex-1 w-full flex flex-col">{children}</main>
+            <BottomNav />
           </ProjectProvider>
         </AuthProvider>
       </body>
