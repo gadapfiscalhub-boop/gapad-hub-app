@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#020617"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="#f59e0b" stroke-width="8" stroke-dasharray="16 16"/>
+  <path d="M256 80 L390 190 L390 400 L122 400 L122 190 Z" fill="#0f172a" stroke="#f59e0b" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M256 80 L390 190 L122 190 Z" fill="#f59e0b" opacity="0.9"/>
+  <rect x="220" y="270" width="72" height="130" rx="8" fill="#38bdf8"/>
+  <path d="M180 230 L200 230 M312 230 L332 230" stroke="#f59e0b" stroke-width="12" stroke-linecap="round"/>
+  <text x="256" y="460" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="900" fill="#f8fafc" text-anchor="middle" letter-spacing="4">GADAP</text>
+</svg>
+
