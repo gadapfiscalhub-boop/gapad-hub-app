@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home,
   Calculator,
-  Package,
+  Camera,
   Clock,
   HardHat
 } from 'lucide-react';
@@ -19,19 +19,19 @@ const NAV_ITEMS = [
     icon: Home,
   },
   {
+    label: 'Diário & Fotos',
+    href: '/diario',
+    activePattern: /^\/diario/,
+    icon: Camera,
+  },
+  {
     label: 'Orçamentos',
     href: '/orcamentos/novo',
     activePattern: /^\/orcamentos/,
     icon: Calculator,
   },
   {
-    label: 'Materiais',
-    href: '/materiais',
-    activePattern: /^\/materiais/,
-    icon: Package,
-  },
-  {
-    label: 'Ponto',
+    label: 'Ponto GPS',
     href: '/ponto',
     activePattern: /^\/ponto/,
     icon: Clock,
@@ -106,4 +106,3 @@ export function BottomNav() {
     </>
   );
 }
-
