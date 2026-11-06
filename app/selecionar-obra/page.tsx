@@ -4,6 +4,18 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { apiClient } from '@/lib/apiClient';
 import { useRouter } from 'next/navigation';
+import {
+  HardHat,
+  Building2,
+  MapPin,
+  ChevronRight,
+  LogOut,
+  Search,
+  RefreshCw,
+  SlidersHorizontal,
+  Clock,
+  DollarSign
+} from 'lucide-react';
 
 interface Project {
   id: string;
@@ -11,6 +23,9 @@ interface Project {
   address: string;
   status: string;
   code?: string;
+  client?: string;
+  contract_value?: string;
+  cronograma?: string;
 }
 
 interface CachedProjectsPayload {
@@ -26,7 +41,7 @@ export default function SelectProjectPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isFromCache, setIsFromCache] = useState(false);
-
+  
   const { selectProject, signOut, user, isAuthenticated } = useApp();
   const router = useRouter();
 
@@ -59,219 +74,280 @@ export default function SelectProjectPage() {
     }
   };
 
+  const fetchProjects = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      let data: Project[] = [];
+      try {
+        data = await apiClient<Project[]>('/projects/active');
+      } catch (activeErr: any) {
+        if (activeErr?.code === 'NETWORK_OFFLINE' && loadFromCache()) {
+          setLoading(false);
+          return;
+        }
+        data = await apiClient<Project[]>('/projects');
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        setProjects(data);
+        setIsFromCache(false);
+        saveToCache(data);
+      } else {
+        const hasCache = loadFromCache();
+        if (!hasCache) {
+          // Obras de modelo idênticas ao print do ERP Principal
+          const fallback: Project[] = [
+            {
+              id: 'obr_lorena_01',
+              name: 'Orçamento Simplificado - Manutenção Piscina e Muro Lorena',
+              address: 'São Paulo/SP',
+              status: 'Planejamento',
+              code: 'OBR-ORC-SIMP-1.5-192617',
+              client: 'Condomínio Edifício Lorena',
+              contract_value: 'R$ 14.950,00',
+              cronograma: '25/10/2026 - 25/10/2027',
+            },
+            {
+              id: 'obr_aurora_02',
+              name: 'Residencial Aurora Prime - Torre A & B',
+              address: 'Av. Paulista, 1842 - Bela Vista, São Paulo/SP',
+              status: 'Em Execução',
+              code: 'OBR-2026-02',
+              client: 'Incoporadora Prime S.A.',
+              contract_value: 'R$ 530.000,00',
+              cronograma: '01/02/2026 - 30/11/2027',
+            },
+            {
+              id: 'obr_anhanguera_03',
+              name: 'Centro Logístico Anhanguera II',
+              address: 'Rod. Anhanguera, km 54, Jundiaí/SP',
+              status: 'Em Execução',
+              code: 'OBR-2026-03',
+              client: 'GLP Logística',
+              contract_value: 'R$ 1.250.000,00',
+              cronograma: '15/01/2026 - 15/08/2027',
+            },
+          ];
+          setProjects(fallback);
+          saveToCache(fallback);
+        }
+      }
+    } catch (err: any) {
+      const recovered = loadFromCache();
+      if (!recovered) {
+        setError(
+          err?.code === 'NETWORK_OFFLINE'
+            ? 'Sem ligação à internet e nenhum canteiro encontrado em cache local.'
+            : err?.message || 'Falha ao sincronizar obras ativas com o servidor.'
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-
-    const fetchProjects = async () => {
-      setLoading(true);
-      setError('');
-
-      try {
-        let data: Project[] = [];
-        try {
-          data = await apiClient<Project[]>('/projects/active');
-        } catch (activeErr: any) {
-          // Se falhou por estar offline, tenta o cache de imediato
-          if (activeErr?.code === 'NETWORK_OFFLINE' && loadFromCache()) {
-            setLoading(false);
-            return;
-          }
-          data = await apiClient<Project[]>('/projects');
-        }
-
-        if (Array.isArray(data) && data.length > 0) {
-          setProjects(data);
-          setIsFromCache(false);
-          saveToCache(data);
-        } else {
-          // Caso a API retorne vazio ou caia em mock offline
-          const hasCache = loadFromCache();
-          if (!hasCache) {
-            const fallback: Project[] = [
-              {
-                id: 'obr_aurora_01',
-                name: 'Residencial Aurora Prime',
-                address: 'Av. Paulista, 1842 - Torre A, São Paulo - SP',
-                status: 'Em Execução',
-                code: 'OBR-2026-01',
-              },
-              {
-                id: 'obr_horizonte_02',
-                name: 'Condomínio Parque Horizonte',
-                address: 'Rua das Palmeiras, 450, Campinas - SP',
-                status: 'Fundação',
-                code: 'OBR-2026-02',
-              },
-              {
-                id: 'obr_log_03',
-                name: 'Centro Logístico Anhanguera II',
-                address: 'Rod. Anhanguera, km 54, Jundiaí - SP',
-                status: 'Estrutura',
-                code: 'OBR-2026-03',
-              },
-            ];
-            setProjects(fallback);
-            saveToCache(fallback);
-          }
-        }
-      } catch (err: any) {
-        // Fallback offline resiliente: se falhou a rede, recupera do cache
-        const recovered = loadFromCache();
-        if (!recovered) {
-          setError(
-            err?.code === 'NETWORK_OFFLINE'
-              ? 'Sem ligação à internet e nenhum canteiro encontrado em cache local.'
-              : err?.message || 'Falha ao sincronizar obras ativas com o servidor.'
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProjects();
-  }, [isAuthenticated, router, loadFromCache]);
+  }, [isAuthenticated, router]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) =>
+    return projects.filter((p) => 
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase()))
+      (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.client && p.client.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [projects, searchTerm]);
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col pb-8">
-      {/* Barra de Topo com Perfil e Logout */}
-      <header className="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 px-5 py-4">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
+    <main className="min-h-screen bg-[#060b13] text-slate-100 flex flex-col pb-12 selection:bg-emerald-500 selection:text-slate-950">
+      {/* Barra de Topo Técnica no estilo exato do GADAP Hub */}
+      <header className="sticky top-0 z-20 bg-[#060b13]/95 backdrop-blur-md border-b border-[#19273c] px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 text-sm">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            <div className="w-9 h-9 rounded-xl bg-[#0d1522] border border-[#19273c] flex items-center justify-center text-emerald-400 font-bold">
+              <HardHat className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs text-slate-400 leading-none">Operador</p>
-              <p className="text-sm font-semibold text-white leading-tight mt-0.5">{user?.name || 'Utilizador'}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white tracking-wide">GADAP Hub</span>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.2 rounded">
+                  Campo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                {user?.name || user?.email || 'Mestre de Campo'} • Empresa Teste
+              </p>
             </div>
           </div>
 
           <button
             onClick={signOut}
-            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-xl transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-rose-400 hover:bg-[#0d1522] border border-transparent hover:border-rose-900/40 transition-colors"
             title="Terminar sessão"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sair</span>
           </button>
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
-      <div className="flex-1 max-w-xl w-full mx-auto px-5 pt-6">
-        <div className="mb-6 flex flex-col gap-1">
+      {/* Conteúdo Principal com Cartões Técnicos */}
+      <div className="flex-1 max-w-2xl w-full mx-auto px-4 pt-5 space-y-4">
+        {/* Cabeçalho da Seção com Ícone Técnico */}
+        <div className="bg-[#0d1522] border border-[#19273c] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Local de Trabalho</h1>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                <HardHat className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h1 className="text-base sm:text-lg font-bold text-white">
+                  Gestão de Obras & Empreendimentos
+                </h1>
+                <p className="text-[11px] sm:text-xs text-slate-400">
+                  Selecione o canteiro ativo para sincronizar orçamentos, materiais e ponto.
+                </p>
+              </div>
+            </div>
+
             {isFromCache && (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-950/80 text-amber-300 border border-amber-600/50">
-                Dados locais (Offline)
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-950/80 text-amber-300 border border-amber-600/50">
+                Cache Offline
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-400">
-            Selecione o canteiro em que está a operar para sincronizar orçamentos, materiais e ponto.
-          </p>
+
+          {/* Cards de Métricas Resumidas idênticos ao GADAP Hub */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-4 pt-3 border-t border-[#19273c]/80">
+            <div className="bg-[#060b13] p-2.5 rounded-xl border border-[#19273c]">
+              <span className="text-[10px] text-slate-400 block">Obras em Andamento</span>
+              <span className="text-sm sm:text-base font-black text-white">2</span>
+              <span className="text-[9px] text-emerald-400 block mt-0.5">Canteiros ativos</span>
+            </div>
+
+            <div className="bg-[#060b13] p-2.5 rounded-xl border border-[#19273c]">
+              <span className="text-[10px] text-slate-400 block">Contratos Sob Gestão</span>
+              <span className="text-sm sm:text-base font-black text-white font-mono">R$ 544.950</span>
+              <span className="text-[9px] text-slate-400 block mt-0.5">3 contrato(s)</span>
+            </div>
+
+            <div className="bg-[#060b13] p-2.5 rounded-xl border border-[#19273c] col-span-2 sm:col-span-1">
+              <span className="text-[10px] text-slate-400 block">Retenção Técnica Média</span>
+              <span className="text-sm sm:text-base font-black text-emerald-400 font-mono">5.0%</span>
+              <span className="text-[9px] text-slate-400 block mt-0.5">Garantia contratual</span>
+            </div>
+          </div>
         </div>
 
-        {/* Campo de Pesquisa Rápida */}
-        <div className="relative mb-5">
-          <svg className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filtrar por nome ou endereço..."
-            className="w-full h-12 pl-11 pr-4 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-400 transition-colors"
-          />
+        {/* Barra de Pesquisa Técnica com Ícone */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nome da obra, código, CNO ou cliente..."
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#0d1522] border border-[#19273c] text-white placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <button
+            onClick={fetchProjects}
+            className="h-11 px-3 rounded-xl bg-[#0d1522] border border-[#19273c] hover:border-slate-600 text-slate-300 flex items-center justify-center transition-all"
+            title="Atualizar lista"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
+          </button>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-950/60 border border-rose-800 text-rose-200 text-sm flex items-center justify-between">
+          <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-200 text-xs flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => window.location.reload()} className="underline text-xs font-semibold ml-2">Tentar de novo</button>
+            <button onClick={fetchProjects} className="underline text-xs font-semibold ml-2">Tentar de novo</button>
           </div>
         )}
 
-        {/* Estado de Carregamento (Skeleton) */}
+        {/* Listagem de Obras / Tabela de Canteiro Estilo GADAP Hub */}
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 rounded-2xl bg-slate-900/60 border border-slate-800/60 animate-pulse p-4 flex flex-col justify-between">
-                <div className="h-4 bg-slate-800 rounded w-2/3"></div>
-                <div className="h-3 bg-slate-800/60 rounded w-4/5"></div>
-                <div className="h-4 bg-slate-800/40 rounded w-1/4"></div>
-              </div>
+              <div key={i} className="h-24 rounded-xl bg-[#0d1522]/80 border border-[#19273c] animate-pulse p-4"></div>
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {filteredProjects.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30">
-                <svg className="w-10 h-10 mx-auto text-slate-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <p className="text-slate-400 text-sm font-medium">Nenhuma obra encontrada.</p>
-                <p className="text-slate-600 text-xs mt-1">Verifique o termo pesquisado ou contacte o gestor da empresa.</p>
+              <div className="p-8 text-center rounded-2xl border border-dashed border-[#19273c] bg-[#0d1522]/50">
+                <Building2 className="w-8 h-8 mx-auto text-slate-600 mb-2" />
+                <p className="text-slate-300 text-xs font-semibold">Nenhuma obra localizada</p>
+                <p className="text-slate-500 text-[11px] mt-1">Verifique o termo pesquisado.</p>
               </div>
             ) : (
               filteredProjects.map((project) => (
-                <button
+                <div
                   key={project.id}
-                  onClick={() => selectProject(project)}
-                  className="w-full text-left p-4 sm:p-5 rounded-2xl border border-slate-800/80 bg-slate-900/90 hover:bg-slate-800/90 hover:border-amber-400/50 transition-all active:scale-[0.99] group shadow-sm flex items-center justify-between gap-4"
+                  onClick={() => selectProject(project.id)}
+                  className="group p-4 rounded-xl border border-[#19273c] bg-[#0d1522] hover:bg-[#111c2e] hover:border-emerald-500/50 transition-all cursor-pointer shadow-md active:scale-[0.99]"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      {project.code && (
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                          {project.code}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      {/* Código da Obra e Status Pill */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {project.code && (
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#060b13] text-slate-300 border border-[#19273c]">
+                            {project.code}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                          {project.status || 'Em Execução'}
                         </span>
-                      )}
-                      <h3 className="text-base font-semibold text-white group-hover:text-amber-400 transition-colors truncate">
+                      </div>
+
+                      {/* Nome da Obra */}
+                      <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors leading-snug">
                         {project.name}
                       </h3>
-                    </div>
 
-                    <p className="text-xs text-slate-400 line-clamp-1 mb-2.5">
-                      {project.address}
-                    </p>
+                      {/* Cliente e Localidade */}
+                      <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                        {project.client && (
+                          <div className="flex items-center gap-1 text-[11px] text-slate-300 font-medium">
+                            <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{project.client}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <MapPin className="w-3 h-3 text-slate-500" />
+                          <span>{project.address}</span>
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        {project.status || 'Ativa'}
-                      </span>
-
-                      {isFromCache && (
-                        <span className="text-[10px] text-amber-400/90 bg-amber-950/40 border border-amber-600/30 px-2 py-0.5 rounded">
-                          Dados locais (Offline)
-                        </span>
+                      {/* Metadados Contratuais */}
+                      {project.contract_value && (
+                        <div className="flex items-center gap-3 pt-1 text-[11px] font-mono text-slate-400">
+                          <span>Valor: <strong className="text-emerald-400">{project.contract_value}</strong></span>
+                          {project.cronograma && (
+                            <span className="hidden sm:inline text-slate-500">• Cronograma: {project.cronograma}</span>
+                          )}
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* Seta de navegação */}
-                  <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-amber-400 flex items-center justify-center text-slate-400 group-hover:text-slate-950 transition-all shrink-0">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                    </svg>
+                    {/* Botão de Entrada */}
+                    <div className="w-8 h-8 rounded-lg bg-[#060b13] group-hover:bg-emerald-500 flex items-center justify-center text-slate-400 group-hover:text-slate-950 transition-all shrink-0 self-center">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
