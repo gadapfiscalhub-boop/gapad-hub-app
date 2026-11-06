@@ -1,183 +1,141 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import {
-  HardHat,
-  Lock,
-  Mail,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-  ShieldCheck,
-  Building2
-} from 'lucide-react';
+import { useState } from 'react';
+import { useApp } from '@/contexts/AppContext';
+import { apiClient } from '@/lib/apiClient';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { loginWithCredentials, isAuthenticated, isLoading: authLoading } = useAuth();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { signIn } = useApp();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/selecionar-obra');
-    }
-  }, [isAuthenticated, router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
+    setLoading(true);
+    setError('');
 
-    if (!email || !password) {
-      setErrorMsg('Preencha seu e-mail e senha de acesso.');
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
-      await loginWithCredentials(email.trim(), password);
+      const response = await apiClient<{ token: string; user: any; access_token?: string }>('/auth/login', {
+        method: 'POST',
+        data: { email, password },
+      });
+
+      const token = response.token || response.access_token || '';
+      signIn(token, response.user || { email });
     } catch (err: any) {
-      setErrorMsg(
-        err?.message || 'Falha ao autenticar no servidor. Verifique suas credenciais.'
-      );
+      setError(err.message || 'Credenciais inválidas. Verifique os dados introduzidos.');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between px-4 py-8 sm:px-6 lg:px-8 selection:bg-amber-500 selection:text-slate-950">
-      {/* Top Banner / Status PWA */}
-      <div className="w-full max-w-md mx-auto flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/80 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="font-mono uppercase tracking-wider text-[11px] text-slate-300">
-            GADAP Field • Online
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-400">
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-[11px]">ERP Conectado</span>
+    <main className="min-h-screen bg-slate-950 flex flex-col justify-between px-5 py-8 sm:items-center sm:justify-center">
+      {/* Cabeçalho de Marca */}
+      <div className="w-full max-w-sm mx-auto sm:hidden pt-4 pb-6">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-emerald-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Terminal de Canteiro
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="w-full max-w-md mx-auto my-auto py-6">
-        {/* App Logo & Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10 mb-4">
-            <HardHat className="w-9 h-9 text-slate-950 stroke-[2.2]" />
+      {/* Cartão de Login */}
+      <div className="w-full max-w-sm mx-auto bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl shadow-black/80">
+        <div className="text-left mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 flex items-center justify-center text-slate-950 font-black text-xl mb-4 shadow-lg shadow-amber-500/20">
+            G
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            GADAP <span className="text-amber-400">Field</span>
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Acesso exclusivo para Mestre de Obras e Engenharia de Campo
-          </p>
+          <h1 className="text-2xl font-black tracking-tight text-white">GADAP Field</h1>
+          <p className="text-sm text-slate-400 mt-1">Introduza os seus dados para iniciar a operação.</p>
         </div>
 
-        {/* Card do Formulário */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-          {errorMsg && (
-            <div className="mb-5 p-3.5 bg-rose-950/60 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-300 text-xs sm:text-sm animate-shake">
-              <AlertCircle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+        {error && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/60 border border-rose-600/50 text-rose-200 text-xs font-medium flex items-center gap-2.5 animate-shake">
+            <svg className="w-4 h-4 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2"
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">
+              E-mail
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full h-12 px-4 rounded-xl bg-slate-950/70 border border-slate-800 text-white text-base placeholder-slate-600 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+              placeholder="utilizador@empresa.com.br"
+              autoComplete="email"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">
+              Palavra-passe
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-12 px-4 pr-12 rounded-xl bg-slate-950/70 border border-slate-800 text-white text-base placeholder-slate-600 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1"
+                aria-label="Alternar visibilidade da palavra-passe"
               >
-                E-mail do Responsável
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="mestre@gadap.com.br"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm font-medium"
-                />
-              </div>
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
             </div>
+          </div>
 
-            {/* Password Field */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2"
-              >
-                Senha de Acesso
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm font-medium"
-                />
-              </div>
-            </div>
-
-            {/* Informação do Tenant */}
-            <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl flex items-center gap-3">
-              <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-              <p className="text-[11px] text-slate-400 leading-tight">
-                Identificação do Tenant (Empresa) é vinculada automaticamente na validação do token JWT.
-              </p>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting || authLoading}
-              className="w-full mt-2 py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 font-bold text-sm tracking-wide transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                  <span>Validando Credenciais...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-slate-950" />
-                  <span>Entrar no Canteiro</span>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 mt-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-base rounded-xl transition-all shadow-lg shadow-amber-400/10 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-slate-950" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>A autenticar...</span>
+              </>
+            ) : (
+              'Aceder ao Canteiro'
+            )}
+          </button>
+        </form>
       </div>
 
-      {/* Footer Info */}
-      <div className="w-full max-w-md mx-auto text-center pt-4">
-        <p className="text-[11px] text-slate-500">
-          GADAP Enterprise Suite • PWA Headless v1.0 • Modo Canteiro
-        </p>
-      </div>
-    </div>
+      {/* Rodapé informativo */}
+      <footer className="text-center text-xs text-slate-600 pb-2">
+        GADAP Core ERP • Versão de Campo
+      </footer>
+    </main>
   );
 }
-

@@ -23,13 +23,14 @@ export class ApiError extends Error {
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  data?: any; // Suporte para { data: body } estilo Axios / Fetch custom
 }
 
 export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { params, headers, ...restOptions } = options;
+  const { params, data: requestBody, body, headers, ...restOptions } = options;
 
   let url = endpoint.startsWith('http')
     ? endpoint
@@ -85,9 +86,17 @@ export async function apiClient<T = any>(
     reqHeaders['X-Tenant-ID'] = tenantId;
   }
 
+  const finalBody =
+    body !== undefined
+      ? body
+      : requestBody !== undefined
+      ? JSON.stringify(requestBody)
+      : undefined;
+
   const response = await fetch(url, {
     ...restOptions,
     headers: reqHeaders,
+    body: finalBody,
   });
 
   // Em caso de 401 não autorizado, deslogar se em ambiente cliente
@@ -141,4 +150,3 @@ export const api = {
   delete: <T = any>(endpoint: string, options?: RequestOptions) =>
     apiClient<T>(endpoint, { ...options, method: 'DELETE' }),
 };
-
