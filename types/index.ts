@@ -17,7 +17,7 @@ export interface Project {
   id: string;
   code?: string;
   name: string;
-  status: 'active' | 'in_progress' | 'paused' | 'completed';
+  status: string; // Compatível com strings dinâmicas do backend ou status pré-definidos
   address?: string;
   city?: string;
   manager_name?: string;
@@ -46,4 +46,3 @@ export interface LoginResponse {
   tenant_id?: string;
   tenant_name?: string;
 }
-

@@ -3,7 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { ProjectProvider } from "@/context/ProjectContext";
-import { PWARegister } from "@/components/PWARegister";
+import { RegisterSW } from "@/components/RegisterSW";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { BottomNav } from "@/components/BottomNav";
 
 const geistSans = Geist({
@@ -49,10 +50,11 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 pb-20">
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 pb-20 selection:bg-amber-500 selection:text-slate-950">
         <AppProvider>
           <ProjectProvider>
-            <PWARegister />
+            <RegisterSW />
+            <OfflineBanner />
             <main className="flex-1 w-full flex flex-col">{children}</main>
             <BottomNav />
           </ProjectProvider>

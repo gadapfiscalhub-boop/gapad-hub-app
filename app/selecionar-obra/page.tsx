@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { apiClient } from '@/lib/apiClient';
 import { useRouter } from 'next/navigation';
@@ -13,14 +13,51 @@ interface Project {
   code?: string;
 }
 
+interface CachedProjectsPayload {
+  projects: Project[];
+  timestamp: number;
+}
+
+const CACHE_KEY = '@gadap:cached_projects';
+
 export default function SelectProjectPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+  const [isFromCache, setIsFromCache] = useState(false);
+
   const { selectProject, signOut, user, isAuthenticated } = useApp();
   const router = useRouter();
+
+  const loadFromCache = useCallback((): boolean => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed: CachedProjectsPayload = JSON.parse(raw);
+        if (Array.isArray(parsed?.projects) && parsed.projects.length > 0) {
+          setProjects(parsed.projects);
+          setIsFromCache(true);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao ler cache local de obras:', e);
+    }
+    return false;
+  }, []);
+
+  const saveToCache = (data: Project[]) => {
+    try {
+      const payload: CachedProjectsPayload = {
+        projects: data,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Falha ao persistir obras no cache local:', e);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -29,16 +66,31 @@ export default function SelectProjectPage() {
     }
 
     const fetchProjects = async () => {
+      setLoading(true);
+      setError('');
+
       try {
         let data: Project[] = [];
         try {
           data = await apiClient<Project[]>('/projects/active');
-        } catch {
-          try {
-            data = await apiClient<Project[]>('/projects');
-          } catch {
-            // Mock de fallback com as obras ativas do ecossistema GADAP
-            data = [
+        } catch (activeErr: any) {
+          // Se falhou por estar offline, tenta o cache de imediato
+          if (activeErr?.code === 'NETWORK_OFFLINE' && loadFromCache()) {
+            setLoading(false);
+            return;
+          }
+          data = await apiClient<Project[]>('/projects');
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          setProjects(data);
+          setIsFromCache(false);
+          saveToCache(data);
+        } else {
+          // Caso a API retorne vazio ou caia em mock offline
+          const hasCache = loadFromCache();
+          if (!hasCache) {
+            const fallback: Project[] = [
               {
                 id: 'obr_aurora_01',
                 name: 'Residencial Aurora Prime',
@@ -61,21 +113,30 @@ export default function SelectProjectPage() {
                 code: 'OBR-2026-03',
               },
             ];
+            setProjects(fallback);
+            saveToCache(fallback);
           }
         }
-        setProjects(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        setError(err.message || 'Falha ao sincronizar obras ativas com o servidor.');
+        // Fallback offline resiliente: se falhou a rede, recupera do cache
+        const recovered = loadFromCache();
+        if (!recovered) {
+          setError(
+            err?.code === 'NETWORK_OFFLINE'
+              ? 'Sem ligação à internet e nenhum canteiro encontrado em cache local.'
+              : err?.message || 'Falha ao sincronizar obras ativas com o servidor.'
+          );
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchProjects();
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, loadFromCache]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => 
+    return projects.filter((p) =>
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -111,9 +172,18 @@ export default function SelectProjectPage() {
 
       {/* Conteúdo Principal */}
       <div className="flex-1 max-w-xl w-full mx-auto px-5 pt-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Local de Trabalho</h1>
-          <p className="text-sm text-slate-400 mt-1">Selecione o canteiro em que está a operar para sincronizar orçamentos, materiais e ponto.</p>
+        <div className="mb-6 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Local de Trabalho</h1>
+            {isFromCache && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-950/80 text-amber-300 border border-amber-600/50">
+                Dados locais (Offline)
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-400">
+            Selecione o canteiro em que está a operar para sincronizar orçamentos, materiais e ponto.
+          </p>
         </div>
 
         {/* Campo de Pesquisa Rápida */}
@@ -162,7 +232,7 @@ export default function SelectProjectPage() {
               filteredProjects.map((project) => (
                 <button
                   key={project.id}
-                  onClick={() => selectProject(project.id)}
+                  onClick={() => selectProject(project)}
                   className="w-full text-left p-4 sm:p-5 rounded-2xl border border-slate-800/80 bg-slate-900/90 hover:bg-slate-800/90 hover:border-amber-400/50 transition-all active:scale-[0.99] group shadow-sm flex items-center justify-between gap-4"
                 >
                   <div className="min-w-0 flex-1">
@@ -181,10 +251,18 @@ export default function SelectProjectPage() {
                       {project.address}
                     </p>
 
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      {project.status || 'Ativa'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        {project.status || 'Ativa'}
+                      </span>
+
+                      {isFromCache && (
+                        <span className="text-[10px] text-amber-400/90 bg-amber-950/40 border border-amber-600/30 px-2 py-0.5 rounded">
+                          Dados locais (Offline)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Seta de navegação */}

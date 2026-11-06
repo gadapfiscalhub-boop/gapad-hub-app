@@ -1,9 +1,13 @@
 /**
- * Client HTTP customizado para o GADAP Field App.
+ * Client HTTP customizado e resiliente para o GADAP Field App.
  * Aponta automaticamente para NEXT_PUBLIC_API_URL e injeta:
  * - Authorization: Bearer <JWT>
  * - X-Project-ID: <active_project_id> (quando selecionado)
  * - X-Tenant-ID: <tenant_id> (quando disponível)
+ * 
+ * Resiliência Offline:
+ * - Detecta desconexão via navigator.onLine antes do envio.
+ * - Trata falhas de rede com erro tipado NETWORK_OFFLINE.
  */
 
 const API_BASE_URL =
@@ -11,19 +15,21 @@ const API_BASE_URL =
 
 export class ApiError extends Error {
   public status: number;
+  public code: string;
   public data: any;
 
-  constructor(status: number, message: string, data?: any) {
+  constructor(status: number, message: string, code: string = 'API_ERROR', data?: any) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
     this.data = data;
   }
 }
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
-  data?: any; // Suporte para { data: body } estilo Axios / Fetch custom
+  data?: any;
 }
 
 export async function apiClient<T = any>(
@@ -31,6 +37,15 @@ export async function apiClient<T = any>(
   options: RequestOptions = {}
 ): Promise<T> {
   const { params, data: requestBody, body, headers, ...restOptions } = options;
+
+  // 1. Verificação prévia de conectividade no cliente
+  if (typeof window !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+    throw new ApiError(
+      0,
+      'Sem ligação à rede no canteiro. A operar em modo offline com dados em cache.',
+      'NETWORK_OFFLINE'
+    );
+  }
 
   let url = endpoint.startsWith('http')
     ? endpoint
@@ -49,7 +64,6 @@ export async function apiClient<T = any>(
     }
   }
 
-  // Obter credenciais salvas no cliente
   let token: string | null = null;
   let activeProjectId: string | null = null;
   let tenantId: string | null = null;
@@ -63,7 +77,7 @@ export async function apiClient<T = any>(
         const parsed = JSON.parse(userRaw);
         tenantId = parsed.tenant_id || parsed.company_id || null;
       } catch (e) {
-        // Ignorar erro de parse
+        // Ignora erro de parsing
       }
     }
   }
@@ -74,17 +88,9 @@ export async function apiClient<T = any>(
     ...(headers as Record<string, string>),
   };
 
-  if (token) {
-    reqHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
-  if (activeProjectId) {
-    reqHeaders['X-Project-ID'] = activeProjectId;
-  }
-
-  if (tenantId) {
-    reqHeaders['X-Tenant-ID'] = tenantId;
-  }
+  if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
+  if (activeProjectId) reqHeaders['X-Project-ID'] = activeProjectId;
+  if (tenantId) reqHeaders['X-Tenant-ID'] = tenantId;
 
   const finalBody =
     body !== undefined
@@ -93,13 +99,33 @@ export async function apiClient<T = any>(
       ? JSON.stringify(requestBody)
       : undefined;
 
-  const response = await fetch(url, {
-    ...restOptions,
-    headers: reqHeaders,
-    body: finalBody,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...restOptions,
+      headers: reqHeaders,
+      body: finalBody,
+    });
+  } catch (err: any) {
+    // Tratar erro nativo de falha de rede (Offline ou DNS inalcançável)
+    const isNetworkErr =
+      !navigator.onLine ||
+      err?.name === 'TypeError' ||
+      err?.message?.includes('Failed to fetch') ||
+      err?.message?.includes('NetworkError');
 
-  // Em caso de 401 não autorizado, deslogar se em ambiente cliente
+    if (isNetworkErr) {
+      throw new ApiError(
+        0,
+        'Não foi possível contactar o servidor central. A ligação à internet falhou.',
+        'NETWORK_OFFLINE',
+        err
+      );
+    }
+    throw new ApiError(500, err?.message || 'Erro inesperado na chamada de rede.', 'NETWORK_ERROR', err);
+  }
+
+  // 401 não autorizado
   if (response.status === 401 && typeof window !== 'undefined') {
     if (!window.location.pathname.includes('/login')) {
       localStorage.removeItem('gadap_token');
@@ -120,7 +146,7 @@ export async function apiClient<T = any>(
   if (!response.ok) {
     const errorMessage =
       data?.detail || data?.message || `Erro HTTP ${response.status}`;
-    throw new ApiError(response.status, errorMessage, data);
+    throw new ApiError(response.status, errorMessage, 'HTTP_ERROR', data);
   }
 
   return data as T;
