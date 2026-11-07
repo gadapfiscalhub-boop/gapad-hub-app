@@ -40,3 +40,76 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #253956;
 }
+
+/* ==========================================================
+   ESTILOS TÉCNICOS PARA O GRÁFICO GANTT (Frappe-Gantt Dark)
+   ========================================================== */
+.gantt-container {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+}
+
+.gantt .grid-header {
+  fill: #0d1522;
+  stroke: #19273c;
+  stroke-width: 1.2;
+}
+
+.gantt .grid-row {
+  fill: #060b13;
+}
+
+.gantt .grid-row:nth-child(even) {
+  fill: #09101c;
+}
+
+.gantt .row-line {
+  stroke: #19273c;
+  stroke-width: 1;
+}
+
+.gantt .tick {
+  stroke: #19273c;
+  stroke-width: 1;
+}
+
+.gantt .today-highlight {
+  fill: rgba(16, 185, 129, 0.12);
+}
+
+.gantt .bar {
+  fill: #19273c;
+  stroke: #334e68;
+  stroke-width: 1;
+  rx: 6;
+  ry: 6;
+}
+
+.gantt .bar-progress {
+  fill: #10b981;
+  rx: 6;
+  ry: 6;
+}
+
+.gantt .bar-label {
+  fill: #f1f5f9;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.gantt .lower-text, .gantt .upper-text {
+  fill: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gantt .handle {
+  fill: #34d399;
+  opacity: 0.8;
+  cursor: ew-resize;
+}
+
+.gantt .bar-wrapper:hover .bar {
+  stroke: #10b981;
+  stroke-width: 2;
+}

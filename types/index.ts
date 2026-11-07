@@ -28,10 +28,44 @@ export interface Project {
   cronograma?: string;
 }
 
+export interface ProjectTask {
+  id: string;
+  name: string;
+  start: string; // YYYY-MM-DD
+  end: string;   // YYYY-MM-DD
+  progress: number; // 0 - 100
+  dependencies?: string;
+  status?: 'planned' | 'in_progress' | 'completed' | 'delayed';
+  custom_class?: string;
+  responsible?: string;
+}
+
+export interface FieldReportPayload {
+  task_id: string;
+  task_name: string;
+  project_id: string;
+  reported_progress: number;
+  report_text: string;
+  reported_by: string;
+  photo_base64?: string;
+  timestamp: string;
+}
+
+export interface ChangeOrderPayload {
+  project_id: string;
+  title: string;
+  description: string;
+  requested_by: string;
+  client_contact?: string;
+  urgency: 'baixa' | 'media' | 'alta';
+  status: 'pending_pricing';
+  created_at: string;
+}
+
 export interface OrderItem {
   id: string;
   name: string;
-  unit: string; // Ex: 'sacos', 'barras', 'm³', 'unid'
+  unit: string;
   expected_qty: number;
   received_qty?: number;
   category?: string;
@@ -42,7 +76,7 @@ export interface MaterialOrder {
   order_number: string;
   supplier: string;
   invoice_number?: string;
-  delivery_forecast: string; // Ex: 'Hoje', 'Amanhã', '10/11/2026'
+  delivery_forecast: string;
   driver_name?: string;
   vehicle_plate?: string;
   items_count: number;

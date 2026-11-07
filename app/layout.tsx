@@ -6,7 +6,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { ProjectProvider } from "@/context/ProjectContext";
 import { RegisterSW } from "@/components/RegisterSW";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { BottomNav } from "@/components/BottomNav";
+import { ResponsiveAppShell } from "@/components/ResponsiveAppShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,16 +51,15 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#060b13] text-slate-100 pb-20 selection:bg-emerald-500 selection:text-slate-950">
+      <body className="min-h-full flex flex-col bg-[#060b13] text-slate-100 selection:bg-emerald-500 selection:text-slate-950">
         <AppProvider>
           <ProjectProvider>
             <RegisterSW />
             <Suspense fallback={null}>
               <OfflineBanner />
             </Suspense>
-            <main className="flex-1 w-full flex flex-col">{children}</main>
-            <Suspense fallback={null}>
-              <BottomNav />
+            <Suspense fallback={<main className="flex-1 w-full flex flex-col">{children}</main>}>
+              <ResponsiveAppShell>{children}</ResponsiveAppShell>
             </Suspense>
           </ProjectProvider>
         </AppProvider>
