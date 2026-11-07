@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  Calculator,
+  Truck,
   Camera,
   Clock,
   HardHat
@@ -19,16 +19,16 @@ const NAV_ITEMS = [
     icon: Home,
   },
   {
+    label: 'Recebimento',
+    href: '/logistica/pendentes',
+    activePattern: /^\/logistica/,
+    icon: Truck,
+  },
+  {
     label: 'Diário & Fotos',
     href: '/diario',
     activePattern: /^\/diario/,
     icon: Camera,
-  },
-  {
-    label: 'Orçamentos',
-    href: '/orcamentos/novo',
-    activePattern: /^\/orcamentos/,
-    icon: Calculator,
   },
   {
     label: 'Ponto GPS',

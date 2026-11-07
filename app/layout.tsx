@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { AppProvider } from "@/contexts/AppContext";
 import { ProjectProvider } from "@/context/ProjectContext";
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
+  themeColor: "#060b13",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -50,13 +51,17 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 pb-20 selection:bg-amber-500 selection:text-slate-950">
+      <body className="min-h-full flex flex-col bg-[#060b13] text-slate-100 pb-20 selection:bg-emerald-500 selection:text-slate-950">
         <AppProvider>
           <ProjectProvider>
             <RegisterSW />
-            <OfflineBanner />
+            <Suspense fallback={null}>
+              <OfflineBanner />
+            </Suspense>
             <main className="flex-1 w-full flex flex-col">{children}</main>
-            <BottomNav />
+            <Suspense fallback={null}>
+              <BottomNav />
+            </Suspense>
           </ProjectProvider>
         </AppProvider>
       </body>
