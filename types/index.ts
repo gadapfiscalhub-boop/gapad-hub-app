@@ -31,13 +31,32 @@ export interface Project {
 export interface ProjectTask {
   id: string;
   name: string;
-  start: string; // YYYY-MM-DD
-  end: string;   // YYYY-MM-DD
-  progress: number; // 0 - 100
+  start: string;
+  end: string;
+  progress: number;
   dependencies?: string;
   status?: 'planned' | 'in_progress' | 'completed' | 'delayed';
   custom_class?: string;
   responsible?: string;
+}
+
+export interface SubcontractorExtraCharge {
+  id: string;
+  subcontractor_name: string;
+  trade: string; // Ex: Elétrica, Alvenaria, Pintura
+  amount: number;
+  reason: string;
+  evidence_description?: string;
+  evidence_photos: string[];
+  status: 'pending' | 'approved' | 'disputed';
+  created_at: string;
+  location?: string;
+  unit_price?: number;
+  quantity?: number;
+  unit?: string;
+  dispute_reason?: string;
+  audited_by?: string;
+  audited_at?: string;
 }
 
 export interface FieldReportPayload {

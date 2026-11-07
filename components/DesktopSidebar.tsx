@@ -11,8 +11,8 @@ import {
   HardHat,
   ArrowRightLeft,
   LogOut,
-  FolderKanban,
-  FileSpreadsheet
+  ShieldAlert,
+  Calculator
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 
@@ -29,13 +29,25 @@ export function DesktopSidebar() {
       label: 'Cronograma Gantt',
       href: '/cronograma',
       icon: CalendarDays,
-      badge: 'Gestão',
+      badge: 'Físico',
+    },
+    {
+      label: 'Auditoria de Extras',
+      href: '/terceirizados/auditoria',
+      icon: ShieldAlert,
+      badge: 'Controle',
     },
     {
       label: 'Recebimento de Carga',
       href: '/logistica/pendentes',
       icon: Truck,
       badge: 'Almoxarifado',
+    },
+    {
+      label: 'Orçamentos Rápidos',
+      href: '/orcamentos/novo',
+      icon: Calculator,
+      badge: 'Markup',
     },
     {
       label: 'Diário & Fotos',
@@ -96,8 +108,8 @@ export function DesktopSidebar() {
       </div>
 
       {/* Navegação Vertical Desktop */}
-      <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
-        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 px-3 py-1 block">
+      <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 px-3 py-1.5 block">
           Módulos de Gestão Técnica
         </span>
 
@@ -109,7 +121,7 @@ export function DesktopSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                 isActive
                   ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-[#111c2e] border border-transparent'
@@ -158,4 +170,3 @@ export function DesktopSidebar() {
     </aside>
   );
 }
-

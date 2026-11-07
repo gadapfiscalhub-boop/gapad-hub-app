@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+import { Suspense } from 'react';
+import MobileDashboard from './dashboard/MobileDashboard';
 
 export default function RootPage() {
-  redirect("/login");
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#060b13]" />}>
+      <MobileDashboard />
+    </Suspense>
+  );
 }
